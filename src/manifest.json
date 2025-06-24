@@ -21,7 +21,7 @@
       "js": ["content.js"]
     }
   ],
-  "permissions": ["storage", "sidePanel", "notifications", "contextMenus"],
+  "permissions": ["storage", "sidePanel"],
   "side_panel": {
     "default_path": "popup.html"
   },
