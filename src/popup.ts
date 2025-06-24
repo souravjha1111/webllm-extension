@@ -13,7 +13,7 @@ import {
   ChatCompletionMessageParam,
   prebuiltAppConfig,
 } from "@mlc-ai/web-llm";
-import { ProgressBar, Line } from "progressbar.js";
+import { Line } from "progressbar.js";
 
 // modified setLabel to not throw error
 function setLabel(id: string, text: string) {
@@ -39,13 +39,14 @@ const modelName = getElementAndCheck("model-name");
 
 let context = "";
 let modelDisplayName = "";
+let selectedText = "";
 
 // throws runtime.lastError if you refresh extension AND try to access a webpage that is already open
 fetchPageContents();
 
 (<HTMLButtonElement>submitButton).disabled = true;
 
-let progressBar: ProgressBar = new Line("#loadingContainer", {
+let progressBar: Line = new Line("#loadingContainer", {
   strokeWidth: 4,
   easing: "easeInOut",
   duration: 1400,
@@ -155,17 +156,51 @@ queryInput.addEventListener("keyup", (event) => {
   }
 });
 
+// Function to update selected text display
+function updateSelectedTextDisplay(text: string) {
+  const selectedTextSection = document.getElementById("selected-text-section")!;
+  const selectedTextContent = document.getElementById("selected-text-content")!;
+  
+  if (text && text.trim()) {
+    selectedText = text.trim();
+    selectedTextContent.textContent = selectedText;
+    selectedTextSection.style.display = "block";
+    
+    // Update placeholder to suggest context-aware prompts
+    const queryInput = document.getElementById("query-input") as HTMLInputElement;
+    queryInput.placeholder = "Ask about the selected text...";
+  } else {
+    selectedText = "";
+    selectedTextSection.style.display = "none";
+    
+    // Reset placeholder
+    const queryInput = document.getElementById("query-input") as HTMLInputElement;
+    queryInput.placeholder = "What's on your mind?";
+  }
+}
+
+// Clear selection button handler
+document.getElementById("clear-selection")!.addEventListener("click", () => {
+  updateSelectedTextDisplay("");
+});
+
 // Listen for clicks on submit button
 async function handleClick() {
   requestInProgress = true;
   (<HTMLButtonElement>submitButton).disabled = true;
 
-  const message = (<HTMLInputElement>queryInput).value;
+  const userMessage = (<HTMLInputElement>queryInput).value;
   document.getElementById("answer")!.innerHTML = "";
   document.getElementById("answerWrapper")!.style.display = "none";
   document.getElementById("loading-indicator")!.style.display = "block";
 
-  chatHistory.push({ role: "user", content: message });
+  // Create enhanced prompt with selected text context
+  let enhancedMessage = userMessage;
+  if (selectedText && selectedText.trim()) {
+    enhancedMessage = `Selected text: "${selectedText}"\n\nUser question: ${userMessage}`;
+  }
+
+  chatHistory.push({ role: "user", content: enhancedMessage });
 
   let curMessage = "";
   const completion = await engine.chat.completions.create({
@@ -245,10 +280,45 @@ async function handleSelectChange() {
 }
 modelSelector.addEventListener("change", handleSelectChange);
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener(({ answer, error }) => {
-  if (answer) {
-    updateAnswer(answer);
+// Listen for messages from the background script and content script
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'textSelection' || message.type === 'pageLoad') {
+    updateSelectedTextDisplay(message.selectedText || "");
+  } else if (message.type === 'processContextMenuRequest') {
+    // Handle context menu request
+    handleContextMenuRequest(message.prompt, message.action, message.selectedText);
+  } else if (message.answer) {
+    updateAnswer(message.answer);
+  }
+});
+
+// Handle context menu requests
+async function handleContextMenuRequest(prompt: string, action: string, selectedText?: string) {
+  // Set the prompt in the input field
+  const queryInput = document.getElementById("query-input") as HTMLInputElement;
+  queryInput.value = prompt;
+  
+  // Update the selected text display if we have context
+  if (selectedText) {
+    updateSelectedTextDisplay(selectedText);
+  } else if (action === 'generateComments') {
+    updateSelectedTextDisplay("LinkedIn post content");
+  } else if (action === 'askFollowupQuestion') {
+    updateSelectedTextDisplay("Selected content");
+  }
+  
+  // Automatically submit the request
+  await handleClick();
+}
+
+// Check for pending context menu requests when popup loads
+chrome.storage.local.get(['pendingPrompt', 'pendingAction', 'selectedText'], (result) => {
+  if (result.pendingPrompt) {
+    // Clear the pending prompt
+    chrome.storage.local.remove(['pendingPrompt', 'pendingAction', 'selectedText']);
+    
+    // Process the pending request
+    handleContextMenuRequest(result.pendingPrompt, result.pendingAction, result.selectedText);
   }
 });
 
@@ -268,11 +338,18 @@ document.getElementById("copyAnswer")!.addEventListener("click", () => {
 
 function fetchPageContents() {
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
-    const port = chrome.tabs.connect(tabs[0].id, { name: "channelName" });
-    port.postMessage({});
-    port.onMessage.addListener(function (msg) {
-      console.log("Page contents:", msg.contents);
-      context = msg.contents;
-    });
+    if (tabs[0]?.id) {
+      const port = chrome.tabs.connect(tabs[0].id, { name: "channelName" });
+      port.postMessage({});
+      port.onMessage.addListener(function (msg) {
+        console.log("Page contents:", msg.contents);
+        context = msg.contents;
+        
+        // Also handle selected text from the port message
+        if (msg.selectedText) {
+          updateSelectedTextDisplay(msg.selectedText);
+        }
+      });
+    }
   });
 }
