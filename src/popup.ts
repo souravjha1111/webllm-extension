@@ -252,6 +252,43 @@ chrome.runtime.onMessage.addListener(({ answer, error }) => {
   }
 });
 
+// Listen for summarize requests from background script
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
+  if (msg.type === 'llm-summarize-popup' && msg.postId && msg.content && msg.tabId) {
+    console.log('[POPUP] Received summarize request from background:', msg);
+    // Prepare the prompt for strict summary
+    const prompt = `Summarize the following LinkedIn post in 1-2 sentences. Strictly return only the summary and nothing else.\n\nPost: ${msg.content}`;
+    try {
+      const completion = await engine.chat.completions.create({
+        stream: false,
+        messages: [
+          { role: "user", content: prompt }
+        ]
+      });
+      let summary = "";
+      if (completion.choices && completion.choices[0] && completion.choices[0].message && completion.choices[0].message.content) {
+        summary = completion.choices[0].message.content.trim();
+      }
+      // Send the summary back to the background script
+      chrome.runtime.sendMessage({
+        type: 'llm-summary-result-popup',
+        postId: msg.postId,
+        summary,
+        tabId: msg.tabId
+      });
+      console.log('[POPUP] Sent summary result to background:', summary);
+    } catch (e) {
+      chrome.runtime.sendMessage({
+        type: 'llm-summary-result-popup',
+        postId: msg.postId,
+        summary: '[Error generating summary]',
+        tabId: msg.tabId
+      });
+      console.error('[POPUP] Error generating summary:', e);
+    }
+  }
+});
+
 function updateAnswer(answer: string) {
   const answerElement = document.getElementById("answer")!;
   answerElement.innerHTML = answer;
