@@ -294,3 +294,24 @@ body {
   color: #5e80a7;
   background-color: transparent;
 }
+
+.chat-message {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-message.user {
+  background: #e3f2fd;
+  color: #1565c0;
+  align-self: flex-end;
+  text-align: right;
+}
+.chat-message.assistant {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  align-self: flex-start;
+  text-align: left;
+}

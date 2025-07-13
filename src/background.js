@@ -31,4 +31,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       summary: msg.summary
     });
   }
+});
+
+// Auto-open side panel when a LinkedIn URL is loaded
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && tab.url.includes('linkedin.com/feed')) {
+    chrome.sidePanel.open({ windowId: tab.windowId });
+  }
 }); 

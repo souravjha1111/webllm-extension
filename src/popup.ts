@@ -166,6 +166,11 @@ async function handleClick() {
   document.getElementById("loading-indicator")!.style.display = "block";
 
   chatHistory.push({ role: "user", content: message });
+  
+  // Clear the input field after sending
+  (<HTMLInputElement>queryInput).value = "";
+  
+  updateChatHistory();
 
   let curMessage = "";
   const completion = await engine.chat.completions.create({
@@ -181,6 +186,8 @@ async function handleClick() {
   }
   const response = await engine.getMessage();
   chatHistory.push({ role: "assistant", content: response });
+
+  updateChatHistory();
 
   requestInProgress = false;
   (<HTMLButtonElement>submitButton).disabled = false;
@@ -257,7 +264,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.type === 'llm-summarize-popup' && msg.postId && msg.content && msg.tabId) {
     console.log('[POPUP] Received summarize request from background:', msg);
     // Prepare the prompt for strict summary
-    const prompt = `Summarize the following LinkedIn post in 1-2 sentences. Strictly return only the summary and nothing else.\n\nPost: ${msg.content}`;
+    const prompt = `Summarize the following LinkedIn post in 1-2 sentences. Strictly return only the summary and nothing else. Do not include text like "Here is a summary of the post" or "Here is the summary" or anything like that.\n\nPost: ${msg.content}`;
     try {
       const completion = await engine.chat.completions.create({
         stream: false,
@@ -302,6 +309,23 @@ document.getElementById("copyAnswer")!.addEventListener("click", () => {
   const answer = document.getElementById("answer")!.innerText;
   navigator.clipboard.writeText(answer);
 });
+
+// Add a function to render chat history
+function updateChatHistory() {
+  const chatHistoryDiv = document.getElementById("chat-history");
+  if (!chatHistoryDiv) return;
+  chatHistoryDiv.innerHTML = chatHistory
+    .map((msg) => {
+      if (msg.role === "user") {
+        return `<div class='chat-message user'><b>You:</b> ${msg.content}</div>`;
+      } else if (msg.role === "assistant") {
+        return `<div class='chat-message assistant'><b>Bot:</b> ${msg.content}</div>`;
+      } else {
+        return '';
+      }
+    })
+    .join("");
+}
 
 function fetchPageContents() {
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {

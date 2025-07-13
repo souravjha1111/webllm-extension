@@ -53,10 +53,19 @@ function injectSummaryBox(postElem, summary) {
   }
 }
 
+// Listen for messages from the extension to update summaries
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'llm-summary-result' && msg.postId && msg.summary) {
+    const postElem = document.querySelector(`[data-urn="${msg.postId}"]`);
+    if (postElem) {
+      injectSummaryBox(postElem, msg.summary);
+    }
+  }
+});
+
 // Main logic to scan and process posts
 function processLinkedInFeed() {
   const posts = extractLinkedInPosts();
-  console.log(`[LLM] Found ${posts.length} LinkedIn posts on the page.`);
   for (const postElem of posts) {
     const postId = getPostId(postElem);
     if (!postId || processedPosts.has(postId)) continue;
@@ -64,7 +73,6 @@ function processLinkedInFeed() {
     if (!content || content.length < 20) continue; // skip empty/short posts
     processedPosts.set(postId, true);
     injectSummaryBox(postElem, 'Summarizing...');
-    console.log(`[LLM] Sending postId=${postId} to background for summary. Content:`, content);
     // Send message to background/popup for LLM summarization
     chrome.runtime.sendMessage({ type: 'llm-summarize', postId, content });
   }
@@ -72,21 +80,3 @@ function processLinkedInFeed() {
 
 // Run initially and on scroll (to catch new posts)
 setInterval(processLinkedInFeed, 2000);
-
-// Existing code for port connection (keep for compatibility)
-chrome.runtime.onConnect.addListener(function (port) {
-  port.onMessage.addListener(function (msg) {
-    port.postMessage({ contents: document.body.innerText });
-  });
-});
-
-// Listen for messages from the extension to update summaries
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === 'llm-summary-result' && msg.postId && msg.summary) {
-    const postElem = document.querySelector(`[data-urn="${msg.postId}"]`);
-    if (postElem) {
-      console.log(`[LLM] Received summary for postId=${msg.postId}:`, msg.summary);
-      injectSummaryBox(postElem, msg.summary);
-    }
-  }
-});
