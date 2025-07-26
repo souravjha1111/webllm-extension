@@ -1,0 +1,56 @@
+# Adblock LLM Extension - Installation & Usage Guide
+
+## 0. Prerequisites
+
+- **Node.js & npm**: This project requires [Node.js](https://nodejs.org/) (which includes npm) to be installed on your system.
+  - Download and install from: https://nodejs.org/
+  - After installation, verify by running:
+    ```
+    node -v
+    npm -v
+    ```
+  - If you see version numbers, you're good to go!
+
+## 1. Installation
+
+1. **Unzip the Project**
+   - Extract the `adblock-extension.zip` file to a folder on your computer.
+
+2. **Install Dependencies**
+   - Open a terminal/command prompt in the extracted folder.
+   - Run:
+     ```
+     npm install
+     ```
+   - This will install all required libraries, including:
+     - `@mlc-ai/web-llm`
+     - `progressbar.js`
+     - (and development tools like `parcel`)
+
+## 2. Load the Extension in Chrome
+
+1. Open Chrome and go to `chrome://extensions/`.
+2. Enable **Developer mode** (toggle in the top right).
+3. Click **Load unpacked** and select the `src` folder inside the extracted directory.
+
+## 3. Usage
+
+- Navigate to your LinkedIn feed.
+- The extension will automatically scan posts and inject a summary box to the right of each post.
+- The summary will update after a few seconds ("Summarizing..." will be replaced by the actual summary).
+
+## 4. What to Expect
+
+- **Summary Box**: For each LinkedIn post, a summary box will appear on the right side of the post.
+- **Automatic Updates**: As you scroll and new posts load, summaries will be generated automatically.
+- **No Manual Action Needed**: The extension works in the background; you do not need to click anything.
+
+## 5. Troubleshooting
+
+- If you do not see summaries, try refreshing the LinkedIn feed page.
+- Make sure you have allowed the extension to run on linkedin.com.
+- Check the browser console for errors if something is not working.
+
+---
+
+For more details, see the `README.md` in the project root. 
